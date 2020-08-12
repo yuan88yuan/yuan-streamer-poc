@@ -11,7 +11,7 @@ const { default: ShortUniqueId } = require('short-unique-id');
 const uuid = new ShortUniqueId();
 
 const server = http.createServer();
-const wss1 = new WebSocket.Server({ noServer: true });
+const wss = new WebSocket.Server({ noServer: true });
 const clientMap = new HashMap();
 const wsMap = new HashMap();
 
@@ -22,7 +22,7 @@ function heartbeat() {
 }
 
 const interval = setInterval(function ping() {
-  wss1.clients.forEach(function each(ws) {
+  wss.clients.forEach(function each(ws) {
     if (ws.isAlive === false) return ws.terminate();
 
     ws.isAlive = false;
@@ -30,7 +30,7 @@ const interval = setInterval(function ping() {
   });
 }, 5000);
 
-wss1.on('connection', function connection(ws) {
+wss.on('connection', function connection(ws) {
 	ws.isAlive = true;
 	ws.on('pong', heartbeat);
 
@@ -63,8 +63,8 @@ server.on('upgrade', function upgrade(request, socket, head) {
 		const cmd = elems[1];
 
 		if (cmd == 'ws') {
-			wss1.handleUpgrade(request, socket, head, function done(ws) {
-				wss1.emit('connection', ws, request);
+			wss.handleUpgrade(request, socket, head, function done(ws) {
+				wss.emit('connection', ws, request);
 			});
 		} else {
 			socket.destroy();
