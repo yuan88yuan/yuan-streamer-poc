@@ -15,7 +15,25 @@ const wss1 = new WebSocket.Server({ noServer: true });
 const clientMap = new HashMap();
 const wsMap = new HashMap();
 
+function noop() {}
+
+function heartbeat() {
+	this.isAlive = true;
+}
+
+const interval = setInterval(function ping() {
+  wss1.clients.forEach(function each(ws) {
+    if (ws.isAlive === false) return ws.terminate();
+
+    ws.isAlive = false;
+    ws.ping(noop);
+  });
+}, 5000);
+
 wss1.on('connection', function connection(ws) {
+	ws.isAlive = true;
+	ws.on('pong', heartbeat);
+
 	ws.once('close', function close(code, reason) {
 		let id = wsMap.get(ws);
 		console.log(util.format("id(%s) removed", id));
@@ -31,6 +49,10 @@ wss1.on('connection', function connection(ws) {
 	wsMap.set(ws, client_info.id);
 
 	ws.send(JSON.stringify(client_info));
+});
+
+wss.on('close', function close() {
+	clearInterval(interval);
 });
 
 server.on('upgrade', function upgrade(request, socket, head) {

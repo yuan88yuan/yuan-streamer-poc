@@ -21,5 +21,4 @@ ws.once('message', function on_got_id(data) {
 
 		ws.send(util.format("streamer request data: %s", data));
 	});
-}
-);
+});
