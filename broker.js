@@ -3,6 +3,7 @@ const WebSocket = require('ws');
 const url = require('url');
 const util = require('util');
 const HashMap = require('hashmap');
+const PORT = process.env.PORT || 5000
 
 // const { v4: uuid } = require('uuid');
 
@@ -117,5 +118,5 @@ server.on("request", function request(request, response) {
 	}
 });
 
-console.log("Broker started");
-server.listen(80);
+console.log(util.format("Broker started @ %d", PORT));
+server.listen(PORT);
