@@ -28,7 +28,7 @@ const interval = setInterval(function ping() {
     ws.isAlive = false;
     ws.ping(noop);
   });
-}, 5000);
+}, 30000);
 
 wss.on('connection', function connection(ws) {
 	ws.isAlive = true;
