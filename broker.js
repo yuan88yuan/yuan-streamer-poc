@@ -118,4 +118,4 @@ server.on("request", function request(request, response) {
 });
 
 console.log("Broker started");
-server.listen(8080);
+server.listen(80);
