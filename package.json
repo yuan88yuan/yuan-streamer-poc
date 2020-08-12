@@ -1,0 +1,8 @@
+{
+  "name": "yuan-streamer-poc",
+  "description": "broker for streamer",
+  "version": "1.0.0",
+  "engines": {
+    "node": "12.x"
+  }
+}
