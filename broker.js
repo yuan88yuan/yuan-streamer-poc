@@ -34,21 +34,27 @@ wss.on('connection', function connection(ws) {
 	ws.isAlive = true;
 	ws.on('pong', heartbeat);
 
-	ws.once('close', function close(code, reason) {
-		let id = wsMap.get(ws);
-		console.log(util.format("id(%s) removed", id));
+	ws.once("message", function on_client_info(data) {
+		console.log(util.format("on_client_info: %s", data));
 
-		wsMap.delete(ws);
-		clientMap.delete(id);
-	});
+		let group_info = JSON.parse(data);
 
-	let client_info = {id: uuid()}
-	console.log(util.format("id(%s) added", client_info.id));
+		ws.once('close', function on_close(code, reason) {
+			let id = wsMap.get(ws);
+			console.log(util.format("id(%s) removed", id));
 
-	clientMap.set(client_info.id, {data: client_info, ws: ws});
-	wsMap.set(ws, client_info.id);
+			wsMap.delete(ws);
+			clientMap.delete(id);
+		});
 
-	ws.send(JSON.stringify(client_info));
+		let client_info = {id: uuid(), group_info: group_info}
+		console.log(util.format("id(%s@%s:%s) added", client_info.id, group_info.name, group_info.id));
+
+		clientMap.set(client_info.id, {data: client_info, ws: ws});
+		wsMap.set(ws, client_info.id);
+
+		ws.send(JSON.stringify(client_info));
+	}
 });
 
 wss.on('close', function close() {
@@ -83,7 +89,12 @@ server.on("request", function request(request, response) {
 		const cmd = elems[1];
 
 		if(cmd == "list") {
-			ret = {err: 'ok', list: clientMap.keys()};
+			let ret = [];
+			clientMap.forEach(function(value, key) {
+				ret.push({id: key, group: value.group_info});
+			});
+
+			ret = {err: 'ok', list: ret};
 		} else if(cmd == 'req') {
 			if(elems.length > 2) {
 				const client_id = elems[2];

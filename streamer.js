@@ -8,6 +8,12 @@ const ws = new WebSocket(server_url);
 let client_id = 0;
 
 ws.once('open', function open() {
+	group_info = {
+		id: '5ffc1d04',
+		name: 'zzlab.demo',
+	};
+
+	ws.send(JSON.stringify(group_info));
 });
 
 ws.once('message', function on_got_id(data) {
