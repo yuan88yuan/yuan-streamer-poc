@@ -3,7 +3,7 @@ const WebSocket = require('ws');
 const url = require('url');
 const util = require('util');
 const HashMap = require('hashmap');
-const PORT = process.env.PORT || 5000
+const PORT = process.env.PORT || 3000
 
 // const { v4: uuid } = require('uuid');
 
@@ -41,20 +41,21 @@ wss.on('connection', function connection(ws) {
 
 		ws.once('close', function on_close(code, reason) {
 			let id = wsMap.get(ws);
-			console.log(util.format("id(%s) removed", id));
+			let client_info = clientMap.get(id).client_info;
+			console.log(util.format("id(%s@%s) removed", client_info.id, client_info.group_info.id));
 
 			wsMap.delete(ws);
 			clientMap.delete(id);
 		});
 
-		let client_info = {id: uuid(), group_info: group_info}
-		console.log(util.format("id(%s@%s:%s) added", client_info.id, group_info.name, group_info.id));
+		let client_info = {id: uuid(), group_info: group_info};
+		console.log(util.format("id(%s@%s) added", client_info.id, client_info.group_info.id));
 
-		clientMap.set(client_info.id, {data: client_info, ws: ws});
+		clientMap.set(client_info.id, {client_info: client_info, ws: ws});
 		wsMap.set(ws, client_info.id);
 
 		ws.send(JSON.stringify(client_info));
-	}
+	});
 });
 
 wss.on('close', function close() {
@@ -89,12 +90,14 @@ server.on("request", function request(request, response) {
 		const cmd = elems[1];
 
 		if(cmd == "list") {
-			let ret = [];
+			let services = [];
 			clientMap.forEach(function(value, key) {
-				ret.push({id: key, group: value.group_info});
+				let client_info = value.client_info;
+
+				services.push({id: client_info.id, group_info: client_info.group_info});
 			});
 
-			ret = {err: 'ok', list: ret};
+			ret = {err: 'ok', services: services};
 		} else if(cmd == 'req') {
 			if(elems.length > 2) {
 				const client_id = elems[2];
