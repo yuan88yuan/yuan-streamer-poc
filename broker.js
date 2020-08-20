@@ -64,7 +64,7 @@ wss.on('connection', function connection(ws) {
 		let dev_conn_info = {conn_info: conn_info, ws: ws};
 
 		connMap.set(conn_info.conn_id, dev_conn_info);
-		wsMap.set(ws, conn_info.id);
+		wsMap.set(ws, conn_info.conn_id);
 		devMap.set(dev_uuid(conn_info.dev_info), dev_conn_info);
 
 		ws.send(JSON.stringify(conn_info));
