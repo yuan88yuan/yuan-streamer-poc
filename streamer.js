@@ -9,7 +9,7 @@ let client_id = 0;
 
 ws.once('open', function open() {
 	group_info = {
-		id: 'yuan-demo0',
+		id: 'X3juNBgopcxCmMEpQiS943',
 	};
 
 	ws.send(JSON.stringify(group_info));
