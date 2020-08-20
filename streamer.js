@@ -3,8 +3,8 @@ const util = require('util');
 
 // server_url = "ws://remote-streamer-control-poc.herokuapp.com/ws/";
 // server_url = "ws://127.0.0.1:3000/ws/";
-// server_url = "ws://10.10.40.32:3000/ws/";
-server_url = "ws://yuan-streamer-poc.herokuapp.com/ws/";
+server_url = "ws://10.10.40.32:3000/ws/";
+// server_url = "ws://yuan-streamer-poc.herokuapp.com/ws/";
 const ws = new WebSocket(server_url);
 
 ws.once('open', function open() {

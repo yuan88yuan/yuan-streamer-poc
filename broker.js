@@ -135,7 +135,7 @@ server.on("request", function request(request, response) {
 	if(elems.length > 1) {
 		const cmd = elems[1];
 
-		if(cmd.startWidth("_")) {
+		if(cmd.startsWith("_")) {
 			if(cmd == "_list") {
 				let services = [];
 				connMap.forEach(function(value, key) {
