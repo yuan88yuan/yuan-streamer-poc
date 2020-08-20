@@ -135,54 +135,58 @@ server.on("request", function request(request, response) {
 	if(elems.length > 1) {
 		const cmd = elems[1];
 
-		if(cmd == "_list") {
-			let services = [];
-			connMap.forEach(function(value, key) {
-				let conn_info = value.conn_info;
+		if(cmd.startWidth("_")) {
+			if(cmd == "_list") {
+				let services = [];
+				connMap.forEach(function(value, key) {
+					let conn_info = value.conn_info;
 
-				services.push({conn_id: conn_info.conn_id, dev_info: conn_info.dev_info});
-			});
+					services.push({conn_id: conn_info.conn_id, dev_info: conn_info.dev_info});
+				});
 
-			ret = {err: 'ok', services: services};
-		} else if(cmd == "_dev") {
-			if(elems.length > 3) {
-				const dev_id = elems[2];
-				const dev_serial = elems[3];
-				const dev_conn_info = devMap.get(dev_uuid2(dev_id, dev_serial));
+				ret = {err: 'ok', services: services};
+			} else if(cmd == "_dev") {
+				if(elems.length > 3) {
+					const dev_id = elems[2];
+					const dev_serial = elems[3];
+					const dev_conn_info = devMap.get(dev_uuid2(dev_id, dev_serial));
 
-				if(dev_conn_info == null) {
-					ret = {err: 'unexpected'};
+					if(dev_conn_info == null) {
+						ret = {err: 'unexpected'};
+					} else {
+						ret = {err: 'ok', dev_conn_info: dev_conn_info.conn_info};
+					}
 				} else {
-					ret = {err: 'ok', dev_conn_info: dev_conn_info.conn_info};
+					ret = {err: 'unexpected'};
+				}
+			} else if(cmd == '_req') {
+				if(elems.length > 2) {
+					const conn_id = elems[2];
+					const dev_conn_info = connMap.get(conn_id);
+
+					if(dev_conn_info == null) {
+						ret = {err: 'unexpected'};
+					} else {
+						route_request(request, response, dev_conn_info.ws);
+					}
+				} else {
+					ret = {err: 'unexpected'};
 				}
 			} else {
 				ret = {err: 'unexpected'};
 			}
-		} else if(cmd == '_req') {
-			if(elems.length > 2) {
-				const conn_id = elems[2];
-				const dev_conn_info = connMap.get(conn_id);
+		} else if(elems.length == 3) {
+			const dev_id = elems[1];
+			const dev_serial = elems[2];
+			const dev_conn_info = devMap.get(dev_uuid2(dev_id, dev_serial));
 
-				if(dev_conn_info == null) {
-					ret = {err: 'unexpected'};
-				} else {
-					route_request(request, response, dev_conn_info.ws);
-				}
-			} else {
+			if(dev_conn_info == null) {
 				ret = {err: 'unexpected'};
+			} else {
+				route_request(request, response, dev_conn_info.ws);
 			}
 		} else {
 			ret = {err: 'unexpected'};
-		}
-	} else if(elems.length > 2) {
-		const dev_id = elems[1];
-		const dev_serial = elems[2];
-		const dev_conn_info = devMap.get(dev_uuid2(dev_id, dev_serial));
-
-		if(dev_conn_info == null) {
-			ret = {err: 'unexpected'};
-		} else {
-			route_request(request, response, dev_conn_info.ws);
 		}
 	} else {
 		ret = {err: 'unexpected'};
