@@ -171,22 +171,18 @@ server.on("request", function request(request, response) {
 			} else {
 				ret = {err: 'unexpected'};
 			}
-		} else if(cmd == "_") {
-			if(elems.length > 3) {
-				const dev_id = elems[2];
-				const dev_serial = elems[3];
-				const dev_conn_info = devMap.get(dev_uuid2(dev_id, dev_serial));
-
-				if(dev_conn_info == null) {
-					ret = {err: 'unexpected'};
-				} else {
-					route_request(request, response, dev_conn_info.ws);
-				}
-			} else {
-				ret = {err: 'unexpected'};
-			}
 		} else {
 			ret = {err: 'unexpected'};
+		}
+	} else if(elems.length > 2) {
+		const dev_id = elems[1];
+		const dev_serial = elems[2];
+		const dev_conn_info = devMap.get(dev_uuid2(dev_id, dev_serial));
+
+		if(dev_conn_info == null) {
+			ret = {err: 'unexpected'};
+		} else {
+			route_request(request, response, dev_conn_info.ws);
 		}
 	} else {
 		ret = {err: 'unexpected'};
