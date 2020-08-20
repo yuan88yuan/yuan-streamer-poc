@@ -12,13 +12,22 @@ const uuid = new ShortUniqueId();
 
 const server = http.createServer();
 const wss = new WebSocket.Server({ noServer: true });
-const clientMap = new HashMap();
-const wsMap = new HashMap();
+const connMap = new HashMap();		// conn-id ==> conn_info
+const wsMap = new HashMap();		// ws ==> conn-id
+const devMap = new HashMap();		// dev-id@serial ==> conn_info
 
 function noop() {}
 
 function heartbeat() {
 	this.isAlive = true;
+}
+
+function dev_uuid2(id, serial) {
+	return util.format("%s&%s", id, serial)
+}
+
+function dev_uuid(dev_info) {
+	return dev_uuid2(dev_info.id, dev_info.serial);
 }
 
 const interval = setInterval(function ping() {
@@ -34,27 +43,31 @@ wss.on('connection', function connection(ws) {
 	ws.isAlive = true;
 	ws.on('pong', heartbeat);
 
-	ws.once("message", function on_client_info(data) {
-		console.log(util.format("on_client_info: %s", data));
+	ws.once("message", function on_conn_info(data) {
+		console.log(util.format("on_conn_info: %s", data));
 
-		let group_info = JSON.parse(data);
+		let dev_info = JSON.parse(data);
 
 		ws.once('close', function on_close(code, reason) {
 			let id = wsMap.get(ws);
-			let client_info = clientMap.get(id).client_info;
-			console.log(util.format("id(%s@%s) removed", client_info.id, client_info.group_info.id));
+			let conn_info = connMap.get(id).conn_info;
+			console.log(util.format("id(%s@%s) removed", conn_info.conn_id, dev_uuid(conn_info.dev_info)));
 
 			wsMap.delete(ws);
-			clientMap.delete(id);
+			connMap.delete(id);
+			devMap.delete(dev_uuid(conn_info.dev_info));
 		});
 
-		let client_info = {id: uuid(), group_info: group_info};
-		console.log(util.format("id(%s@%s) added", client_info.id, client_info.group_info.id));
+		let conn_info = {conn_id: uuid(), dev_info: dev_info};
+		console.log(util.format("id(%s@%s) added", conn_info.conn_id, dev_uuid(conn_info.dev_info)));
 
-		clientMap.set(client_info.id, {client_info: client_info, ws: ws});
-		wsMap.set(ws, client_info.id);
+		let dev_conn_info = {conn_info: conn_info, ws: ws};
 
-		ws.send(JSON.stringify(client_info));
+		connMap.set(conn_info.conn_id, dev_conn_info);
+		wsMap.set(ws, conn_info.id);
+		devMap.set(dev_uuid(conn_info.dev_info), dev_conn_info);
+
+		ws.send(JSON.stringify(conn_info));
 	});
 });
 
@@ -81,6 +94,39 @@ server.on('upgrade', function upgrade(request, socket, head) {
 	}
 });
 
+function route_request(request, response, ws) {
+	let body = [];
+	request.on('data', (chunk) => {
+		body.push(chunk);
+	}).on('end', () => {
+		body = Buffer.concat(body).toString();
+		console.log(util.format("body: %s", body));
+
+		function on_close(code, reason) {
+			console.log(util.format("client closed %d, %s", code, reason));
+
+			ret = {err: {code: code, reason: reason}};
+
+			response.writeHead(200, {'Content-Type': 'application/json'});
+			response.write(JSON.stringify(ret));
+			response.end();
+		}
+
+		ws.once('close', on_close);
+
+		ws.send(body);
+		ws.once("message", function on_message(data) {
+			console.log(util.format("on_message: %s", data));
+
+			ws.removeListener('close', on_close);
+
+			response.writeHead(200, {'Content-Type': 'application/json'});
+			response.write(data);
+			response.end();
+		});
+	});
+}
+
 server.on("request", function request(request, response) {
 	const pathname = url.parse(request.url).pathname;
 	const elems = pathname.split('/');
@@ -89,53 +135,52 @@ server.on("request", function request(request, response) {
 	if(elems.length > 1) {
 		const cmd = elems[1];
 
-		if(cmd == "list") {
+		if(cmd == "_list") {
 			let services = [];
-			clientMap.forEach(function(value, key) {
-				let client_info = value.client_info;
+			connMap.forEach(function(value, key) {
+				let conn_info = value.conn_info;
 
-				services.push({id: client_info.id, group_info: client_info.group_info});
+				services.push({conn_id: conn_info.conn_id, dev_info: conn_info.dev_info});
 			});
 
 			ret = {err: 'ok', services: services};
-		} else if(cmd == 'req') {
-			if(elems.length > 2) {
-				const client_id = elems[2];
-				const client_info = clientMap.get(client_id);
+		} else if(cmd == "_dev") {
+			if(elems.length > 3) {
+				const dev_id = elems[2];
+				const dev_serial = elems[3];
+				const dev_conn_info = devMap.get(dev_uuid2(dev_id, dev_serial));
 
-				if(client_info == null) {
+				if(dev_conn_info == null) {
 					ret = {err: 'unexpected'};
 				} else {
-					let body = [];
-					request.on('data', (chunk) => {
-						body.push(chunk);
-					}).on('end', () => {
-						body = Buffer.concat(body).toString();
-						console.log(util.format("body: %s", body));
+					ret = {err: 'ok', dev_conn_info: dev_conn_info.conn_info};
+				}
+			} else {
+				ret = {err: 'unexpected'};
+			}
+		} else if(cmd == '_req') {
+			if(elems.length > 2) {
+				const conn_id = elems[2];
+				const dev_conn_info = connMap.get(conn_id);
 
-						function on_close(code, reason) {
-							console.log(util.format("client closed %d, %s", code, reason));
+				if(dev_conn_info == null) {
+					ret = {err: 'unexpected'};
+				} else {
+					route_request(request, response, dev_conn_info.ws);
+				}
+			} else {
+				ret = {err: 'unexpected'};
+			}
+		} else if(cmd == "_") {
+			if(elems.length > 3) {
+				const dev_id = elems[2];
+				const dev_serial = elems[3];
+				const dev_conn_info = devMap.get(dev_uuid2(dev_id, dev_serial));
 
-							ret = {err: {code: code, reason: reason}};
-
-							response.writeHead(200, {'Content-Type': 'application/json'});
-							response.write(JSON.stringify(ret));
-							response.end();
-						}
-
-						client_info.ws.once('close', on_close);
-
-						client_info.ws.send(body);
-						client_info.ws.once("message", function on_message(data) {
-							console.log(util.format("on_message: %s", data));
-
-							client_info.ws.removeListener('close', on_close);
-
-							response.writeHead(200, {'Content-Type': 'application/json'});
-							response.write(data);
-							response.end();
-						});
-					});
+				if(dev_conn_info == null) {
+					ret = {err: 'unexpected'};
+				} else {
+					route_request(request, response, dev_conn_info.ws);
 				}
 			} else {
 				ret = {err: 'unexpected'};
